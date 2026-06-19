@@ -1,0 +1,42 @@
+{
+  "categories": [
+    {
+      "id": "cat-1",
+      "libelle": "Categorie 1"
+    },
+    {
+      "id": "Py_hWyW9bos",
+      "libelle": "Informatique"
+    },
+    {
+      "id": "cat-f0906095-28fe-443c-898d-4287dfb34f92",
+      "libelle": "marketing"
+    }
+  ],
+  "produits": [
+    {
+      "id": "prod-ae971e28-f1c8-467f-bea2-dd9809094b1d",
+      "libelle": "Neque consectetur mo",
+      "prix": 27,
+      "quantite": 15,
+      "categorieId": "cat-1",
+      "image": "https://res.cloudinary.com/dgdmx2cn0/image/upload/v1781793186/jgb2glkratj0al7py3mh.png"
+    },
+    {
+      "id": "prod-cbbadba9-42cd-4a98-9df1-8e7e90ebd580",
+      "libelle": "Deserunt consequat",
+      "prix": 48,
+      "quantite": 61,
+      "categorieId": "Py_hWyW9bos",
+      "image": "https://res.cloudinary.com/dgdmx2cn0/image/upload/v1781797221/opagfflifpbpp4xxgrnu.jpg"
+    },
+    {
+      "id": "prod-8eea41a0-4f94-4913-a4d1-e26d516be34e",
+      "libelle": "Cupiditate expedita",
+      "prix": 43,
+      "quantite": 51,
+      "categorieId": "cat-f0906095-28fe-443c-898d-4287dfb34f92",
+      "image": "https://res.cloudinary.com/dgdmx2cn0/image/upload/v1781798344/cuu7bpk1kya5vvu8sabt.png"
+    }
+  ]
+}
