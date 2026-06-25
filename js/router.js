@@ -5,6 +5,8 @@ import { renderProduitsPage } from "./pages/produitsPage.js";
 import { renderLoginPage } from "./pages/loginPage.js";
 import { renderUsersPage } from "./pages/usersPage.js";
 import { isLoggedIn } from "./services/userService.js";
+import { renderSidebar, initSidebarEvents } from "./components/sidebar.js";
+import { renderNavbar } from "./components/navbar.js";
 
 const routes = {
   login: renderLoginPage,
@@ -20,27 +22,61 @@ const titles = {
   users: "Utilisateurs",
 };
 
+function mountLayout() {
+  const sidebarRoot = document.getElementById("sidebarRoot");
+  const navbarRoot = document.getElementById("navbarRoot");
+  const mainWrapper = sidebarRoot.nextElementSibling;
+
+  sidebarRoot.innerHTML = renderSidebar();
+  navbarRoot.innerHTML = renderNavbar();
+  mainWrapper.classList.add("lg:pl-72");
+  initSidebarEvents();
+
+  document.querySelectorAll("[data-page]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await navigate(button.dataset.page);
+    });
+  });
+}
+
+function unmountLayout() {
+  const sidebarRoot = document.getElementById("sidebarRoot");
+  const navbarRoot = document.getElementById("navbarRoot");
+  const mainWrapper = sidebarRoot.nextElementSibling;
+
+  sidebarRoot.innerHTML = "";
+  navbarRoot.innerHTML = "";
+  mainWrapper.classList.remove("lg:pl-72");
+}
+
 export async function navigate(page = "categories", addToHistory = true) {
   const app = document.getElementById("app");
-  
-  // Pages publiques (pas besoin d'être connecté)
+
   const publicPages = ["login"];
   const isPublic = publicPages.includes(page);
-  
-  // Si la page est protégée et l'utilisateur n'est pas connecté
+
   if (!isPublic && !isLoggedIn()) {
     page = "login";
   }
-  
+
   const targetPage = routes[page] ? page : "categories";
   const route = routes[targetPage];
+
+  // Gérer l'affichage du layout
+  if (targetPage === "login") {
+    unmountLayout();
+  } else {
+    if (!document.getElementById("sidebar")) {
+      mountLayout();
+    }
+  }
 
   if (addToHistory) {
     const newUrl = `${window.location.pathname}?page=${targetPage}`;
     window.history.pushState({ page: targetPage }, "", newUrl);
   }
 
-  // Mise à jour de la sidebar
+  // Active state sidebar
   document.querySelectorAll("[data-page]").forEach((button) => {
     const isActive = button.dataset.page === targetPage;
     button.classList.toggle("bg-slate-950", isActive);
@@ -57,7 +93,6 @@ export async function navigate(page = "categories", addToHistory = true) {
     navbarTitle.textContent = titles[targetPage] || titles.categories;
   }
 
-  // Loader
   app.innerHTML = `
     <div class="grid min-h-[50vh] place-items-center rounded-[2rem] border border-slate-200 bg-white p-10 text-center shadow-sm">
       <div>
