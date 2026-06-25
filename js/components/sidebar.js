@@ -7,11 +7,13 @@ export function renderSidebar() {
   const user = getCurrentUser();
   const userRole = user?.role || "guest";
   
-  const allLinks = [
-    { page: "categories", label: "Catégories", icon: "fa-tags", roles: ["admin", "fournisseur"] },
-    { page: "produits", label: "Produits", icon: "fa-box", roles: ["admin", "fournisseur"] },
-    { page: "users", label: "Utilisateurs", icon: "fa-users", roles: ["admin"] },
-  ];
+  // js/components/sidebar.js - Déjà fait dans votre code
+// Les fournisseurs ne voient pas le lien "Utilisateurs"
+const allLinks = [
+  { page: "categories", label: "Catégories", icon: "fa-tags", roles: ["admin", "fournisseur"] },
+  { page: "produits", label: "Produits", icon: "fa-box", roles: ["admin", "fournisseur"] },
+  { page: "users", label: "Utilisateurs", icon: "fa-users", roles: ["admin"] }, // ← Seul admin voit ça
+];
   
   // Filtrer selon le rôle
   const visibleLinks = allLinks.filter(link => 

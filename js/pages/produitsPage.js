@@ -194,6 +194,8 @@ function renderCardsView(produits, categoryMap) {
     return `<div class="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-center text-sm font-semibold text-slate-500">Aucun produit enregistré.</div>`;
   }
 
+  const isFournisseurUser = isFournisseur();
+
   return `
     <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
       ${produits.map((prod) => {
@@ -223,19 +225,23 @@ function renderCardsView(produits, categoryMap) {
               </div>
 
               <div class="mt-5 flex gap-2 border-t border-slate-100 pt-4">
-                ${canModifyProduct(prod) ? `
-                  <button class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-extrabold text-slate-700 transition hover:bg-slate-50" data-edit="${escapeHtml(prod.id)}">
-                    <i class="fa-solid fa-pen"></i> Modifier
-                  </button>
-                ` : ''}
-                ${canDeleteProduct(prod) ? `
-                  <button class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-rose-600 py-2.5 text-xs font-extrabold text-white transition hover:bg-rose-700" data-delete="${escapeHtml(prod.id)}">
-                    <i class="fa-solid fa-trash"></i> Supprimer
-                  </button>
-                ` : ''}
-                ${!canModifyProduct(prod) && !canDeleteProduct(prod) ? `
-                  <span class="flex-1 text-center text-xs text-slate-400 py-2.5">Lecture seule</span>
-                ` : ''}
+                ${isFournisseurUser ? `
+                  <span class="flex-1 text-center text-xs text-slate-400 py-2.5">🔒 Lecture seule</span>
+                ` : `
+                  ${canModifyProduct(prod) ? `
+                    <button class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-extrabold text-slate-700 transition hover:bg-slate-50" data-edit="${escapeHtml(prod.id)}">
+                      <i class="fa-solid fa-pen"></i> Modifier
+                    </button>
+                  ` : ''}
+                  ${canDeleteProduct(prod) ? `
+                    <button class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-rose-600 py-2.5 text-xs font-extrabold text-white transition hover:bg-rose-700" data-delete="${escapeHtml(prod.id)}">
+                      <i class="fa-solid fa-trash"></i> Supprimer
+                    </button>
+                  ` : ''}
+                  ${!canModifyProduct(prod) && !canDeleteProduct(prod) ? `
+                    <span class="flex-1 text-center text-xs text-slate-400 py-2.5">🔒 Lecture seule</span>
+                  ` : ''}
+                `}
               </div>
             </div>
           </div>
@@ -274,7 +280,8 @@ export async function renderProduitsPage() {
   const inactiveBtnClass = "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50";
 
   const user = getCurrentUser();
-  const isUserAdmin = isAdmin();
+  const isFournisseurUser = isFournisseur();
+  const isAdminUser = isAdmin();
 
   app.innerHTML = `
     <section>
@@ -282,7 +289,7 @@ export async function renderProduitsPage() {
         kicker: "Stock",
         title: "Produits",
         subtitle: "Gérer l'ensemble des articles et des stocks matières.",
-        actionLabel: "Nouveau produit",
+        actionLabel: isFournisseurUser ? "" : "Nouveau produit",
         actionId: "addProduitBtn",
         actionIcon: "fa-box"
       })}
@@ -321,13 +328,17 @@ export async function renderProduitsPage() {
             { 
               label: "Fournisseur", 
               render: (p) => {
-                // On pourrait récupérer le nom du fournisseur depuis la base
                 return p.fournisseurId ? `<span class="text-xs text-slate-500">ID: ${escapeHtml(p.fournisseurId)}</span>` : '-';
               }
             },
             {
               label: "Actions",
               render: (p) => {
+                // Si l'utilisateur est fournisseur, on n'affiche pas les actions
+                if (isFournisseurUser) {
+                  return `<span class="text-xs text-slate-400">🔒 Lecture seule</span>`;
+                }
+                
                 const canModify = canModifyProduct(p);
                 const canDelete = canDeleteProduct(p);
                 
@@ -343,8 +354,8 @@ export async function renderProduitsPage() {
                         <i class="fa-solid fa-trash"></i> Supprimer
                       </button>
                     ` : ''}
-                    ${!canModify && !canDelete ? `
-                      <span class="text-xs text-slate-400"> Lecture seule</span>
+                    ${!canModify && !canDelete && !isFournisseurUser ? `
+                      <span class="text-xs text-slate-400">🔒 Lecture seule</span>
                     ` : ''}
                   </div>
                 `;
@@ -369,14 +380,22 @@ export async function renderProduitsPage() {
     renderProduitsPage(); 
   });
   
-  document.getElementById("addProduitBtn").addEventListener("click", () => {
-    // Vérifier si l'utilisateur peut créer un produit
-    if (!user) {
-      showToast("Vous devez être connecté pour créer un produit.", "error");
-      return;
-    }
-    openProduitForm(null, categories);
-  });
+  // Bouton "Nouveau produit" - visible uniquement pour les admins
+  const addBtn = document.getElementById("addProduitBtn");
+  if (addBtn) {
+    addBtn.addEventListener("click", () => {
+      // Vérifier si l'utilisateur peut créer un produit
+      if (!user) {
+        showToast("Vous devez être connecté pour créer un produit.", "error");
+        return;
+      }
+      if (isFournisseurUser) {
+        showToast("Les fournisseurs ne peuvent pas créer de produits.", "error");
+        return;
+      }
+      openProduitForm(null, categories);
+    });
+  }
 
   document.querySelectorAll("[data-edit]").forEach((btn) => {
     btn.addEventListener("click", () => {

@@ -14,6 +14,7 @@ import {
 } from "../services/userService.js";
 import { navigate } from "../router.js";
 
+// js/pages/usersPage.js - Modifier la fonction userFormBody
 function userFormBody(user = null) {
   return `
     <div class="space-y-4">
@@ -44,6 +45,7 @@ function userFormBody(user = null) {
             value="${escapeHtml(user?.nom || "")}"
             placeholder="Diop"
           />
+          <p class="mt-1 hidden text-xs font-semibold text-rose-600" id="error_nom"></p>
         </div>
         <div>
           <label class="mb-2 block text-xs font-extrabold uppercase tracking-[0.14em] text-slate-500">
@@ -56,6 +58,7 @@ function userFormBody(user = null) {
             value="${escapeHtml(user?.prenom || "")}"
             placeholder="Aliou"
           />
+          <p class="mt-1 hidden text-xs font-semibold text-rose-600" id="error_prenom"></p>
         </div>
       </div>
 
@@ -71,6 +74,7 @@ function userFormBody(user = null) {
             value="${escapeHtml(user?.telephone || "")}"
             placeholder="771234567"
           />
+          <p class="mt-1 hidden text-xs font-semibold text-rose-600" id="error_telephone"></p>
         </div>
         <div>
           <label class="mb-2 block text-xs font-extrabold uppercase tracking-[0.14em] text-slate-500">
@@ -87,6 +91,7 @@ function userFormBody(user = null) {
               Administrateur
             </option>
           </select>
+          <p class="mt-1 hidden text-xs font-semibold text-rose-600" id="error_role"></p>
         </div>
       </div>
 
@@ -114,6 +119,7 @@ function userFormBody(user = null) {
             class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
             placeholder="•••••••• (min 6 caractères)"
           />
+          <p class="mt-1 hidden text-xs font-semibold text-rose-600" id="error_password"></p>
           <p class="mt-1 text-xs text-slate-400">Minimum 6 caractères</p>
         </div>
       ` : ""}
@@ -121,6 +127,7 @@ function userFormBody(user = null) {
   `;
 }
 
+// js/pages/usersPage.js - Modifier la fonction openUserForm
 function openUserForm(user = null) {
   openModal({
     title: user ? "Modifier l'utilisateur" : "Nouvel utilisateur",
@@ -128,33 +135,73 @@ function openUserForm(user = null) {
     body: userFormBody(user),
     confirmLabel: user ? "Enregistrer" : "Créer",
     onConfirm: async (modal) => {
-      const email = modal.querySelector("#userEmail").value;
-      const nom = modal.querySelector("#userNom").value;
-      const prenom = modal.querySelector("#userPrenom").value;
-      const telephone = modal.querySelector("#userTelephone").value;
+      const email = modal.querySelector("#userEmail").value.trim();
+      const nom = modal.querySelector("#userNom").value.trim();
+      const prenom = modal.querySelector("#userPrenom").value.trim();
+      const telephone = modal.querySelector("#userTelephone").value.trim();
       const role = modal.querySelector("#userRole").value;
-      const adresse = modal.querySelector("#userAdresse").value;
+      const adresse = modal.querySelector("#userAdresse").value.trim();
       const password = modal.querySelector("#userPassword")?.value || "";
 
-      const rules = {
-        email: { required: true },
-        nom: { required: true },
-        prenom: { required: true },
-        telephone: { required: true },
-        role: { required: true }
-      };
+      // Réinitialiser les erreurs
+      modal.querySelectorAll("[id^='error_']").forEach(el => {
+        el.classList.add("hidden");
+        el.textContent = "";
+      });
 
-      const errors = validateForm({ email, nom, prenom, telephone, role }, rules);
-      
-      if (Object.keys(errors).length > 0) {
-        showToast("Veuillez remplir tous les champs obligatoires.", "error");
-        return false;
+      let hasError = false;
+
+      // Validation Email
+      if (!email) {
+        const errEl = modal.querySelector("#error_email");
+        if (errEl) { errEl.textContent = "L'email est obligatoire."; errEl.classList.remove("hidden"); }
+        hasError = true;
+      } else if (!email.includes("@") || !email.includes(".")) {
+        const errEl = modal.querySelector("#error_email");
+        if (errEl) { errEl.textContent = "Veuillez entrer un email valide."; errEl.classList.remove("hidden"); }
+        hasError = true;
       }
 
+      // Validation Nom
+      if (!nom) {
+        const errEl = modal.querySelector("#error_nom");
+        if (errEl) { errEl.textContent = "Le nom est obligatoire."; errEl.classList.remove("hidden"); }
+        hasError = true;
+      }
+
+      // Validation Prénom
+      if (!prenom) {
+        const errEl = modal.querySelector("#error_prenom");
+        if (errEl) { errEl.textContent = "Le prénom est obligatoire."; errEl.classList.remove("hidden"); }
+        hasError = true;
+      }
+
+      // Validation Téléphone
+      if (!telephone) {
+        const errEl = modal.querySelector("#error_telephone");
+        if (errEl) { errEl.textContent = "Le téléphone est obligatoire."; errEl.classList.remove("hidden"); }
+        hasError = true;
+      } else if (!/^[0-9]{9,}$/.test(telephone.replace(/\s/g, ''))) {
+        const errEl = modal.querySelector("#error_telephone");
+        if (errEl) { errEl.textContent = "Veuillez entrer un numéro valide (au moins 9 chiffres)."; errEl.classList.remove("hidden"); }
+        hasError = true;
+      }
+
+      // Validation Rôle
+      if (!role) {
+        const errEl = modal.querySelector("#error_role");
+        if (errEl) { errEl.textContent = "Veuillez sélectionner un rôle."; errEl.classList.remove("hidden"); }
+        hasError = true;
+      }
+
+      // Validation Mot de passe (uniquement pour la création)
       if (!user && password.length < 6) {
-        showToast("Le mot de passe doit contenir au moins 6 caractères.", "error");
-        return false;
+        const errEl = modal.querySelector("#error_password");
+        if (errEl) { errEl.textContent = "Le mot de passe doit contenir au moins 6 caractères."; errEl.classList.remove("hidden"); }
+        hasError = true;
       }
+
+      if (hasError) return false;
 
       try {
         const userData = { email, nom, prenom, telephone, role, adresse };
@@ -171,7 +218,11 @@ function openUserForm(user = null) {
         await renderUsersPage();
         return true;
       } catch (error) {
-        showToast(error.message, "error");
+        // Afficher l'erreur dans un toast sans le toast derrière
+        const errorMsg = error.message || "Une erreur est survenue.";
+        alert(errorMsg); // Utiliser alert comme fallback
+        // Ou utilisez showToast si vous voulez garder les toasts
+        // showToast(errorMsg, "error");
         return false;
       }
     }

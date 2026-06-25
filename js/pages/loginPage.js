@@ -36,9 +36,9 @@ export function renderLoginPage() {
               id="loginEmail"
               class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
               placeholder="admin@gestion-appro.com"
-              value="admin@gestion-appro.com"
               required
             />
+            <p class="mt-1 hidden text-xs font-semibold text-rose-600" id="error_email"></p>
           </div>
 
           <div>
@@ -49,26 +49,23 @@ export function renderLoginPage() {
               type="password"
               id="loginPassword"
               class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
-              placeholder="admin123"
-              value="admin123"
+              placeholder="••••••••"
               required
             />
-            <p class="mt-1 hidden text-xs font-semibold text-rose-600" id="error_login"></p>
+            <p class="mt-1 hidden text-xs font-semibold text-rose-600" id="error_password"></p>
           </div>
+
+          <p class="hidden text-xs font-semibold text-rose-600 text-center" id="error_login"></p>
 
           <button
             type="submit"
+            id="loginBtn"
             class="w-full rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-700 px-4 py-3 text-sm font-extrabold text-white transition hover:shadow-lg hover:shadow-indigo-200"
           >
             <i class="fa-solid fa-arrow-right-to-bracket mr-2"></i>
             Se connecter
           </button>
         </form>
-
-        <div class="mt-6 text-center text-xs text-slate-400 border-t border-slate-100 pt-4">
-          <p>Admin : admin@gestion-appro.com / admin123</p>
-          <p class="mt-1">Fournisseur : fournisseur1@email.com / fournisseur123</p>
-        </div>
       </div>
     </div>
   `;
@@ -76,18 +73,57 @@ export function renderLoginPage() {
   document.getElementById("loginForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     
-    const email = document.getElementById("loginEmail").value;
-    const password = document.getElementById("loginPassword").value;
-    const errorEl = document.getElementById("error_login");
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value.trim();
+    const errorEmail = document.getElementById("error_email");
+    const errorPassword = document.getElementById("error_password");
+    const errorLogin = document.getElementById("error_login");
+    const loginBtn = document.getElementById("loginBtn");
+    
+    // Réinitialiser les erreurs
+    errorEmail.classList.add("hidden");
+    errorPassword.classList.add("hidden");
+    errorLogin.classList.add("hidden");
+    
+    // Validation des champs
+    let hasError = false;
+    
+    if (!email) {
+      errorEmail.textContent = "L'email est obligatoire.";
+      errorEmail.classList.remove("hidden");
+      hasError = true;
+    } else if (!email.includes("@") || !email.includes(".")) {
+      errorEmail.textContent = "Veuillez entrer un email valide.";
+      errorEmail.classList.remove("hidden");
+      hasError = true;
+    }
+    
+    if (!password) {
+      errorPassword.textContent = "Le mot de passe est obligatoire.";
+      errorPassword.classList.remove("hidden");
+      hasError = true;
+    } else if (password.length < 6) {
+      errorPassword.textContent = "Le mot de passe doit contenir au moins 6 caractères.";
+      errorPassword.classList.remove("hidden");
+      hasError = true;
+    }
+    
+    if (hasError) return;
+    
+    // Désactiver le bouton pendant la connexion
+    loginBtn.disabled = true;
+    loginBtn.textContent = "Connexion...";
     
     try {
       await login(email, password);
       showToast("Connexion réussie !", "success");
       navigate("categories");
     } catch (error) {
-      errorEl.textContent = error.message;
-      errorEl.classList.remove("hidden");
-      showToast(error.message, "error");
+      errorLogin.textContent = error.message;
+      errorLogin.classList.remove("hidden");
+    } finally {
+      loginBtn.disabled = false;
+      loginBtn.innerHTML = `<i class="fa-solid fa-arrow-right-to-bracket mr-2"></i> Se connecter`;
     }
   });
 }
