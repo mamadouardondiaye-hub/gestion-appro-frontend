@@ -115,9 +115,10 @@ export function renderLoginPage() {
     loginBtn.textContent = "Connexion...";
     
     try {
-      await login(email, password);
+      const user = await login(email, password);
       showToast("Connexion réussie !", "success");
-      navigate("categories");
+      // Redirection selon le rôle
+      navigate(user.role === "fournisseur" ? "produits" : "categories");
     } catch (error) {
       errorLogin.textContent = error.message;
       errorLogin.classList.remove("hidden");
