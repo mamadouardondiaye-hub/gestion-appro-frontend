@@ -1,11 +1,14 @@
 // js/app.js
-import { renderSidebar } from "./components/sidebar.js";
+import { renderSidebar, initSidebarEvents } from "./components/sidebar.js";
 import { renderNavbar } from "./components/navbar.js";
 import { navigate } from "./router.js";
+import { isLoggedIn } from "./services/userService.js";
 
 function mountLayout() {
   document.getElementById("sidebarRoot").innerHTML = renderSidebar();
   document.getElementById("navbarRoot").innerHTML = renderNavbar();
+  
+  initSidebarEvents();
 }
 
 function initSidebar() {
@@ -45,8 +48,12 @@ function startApp() {
   initNavigation(sidebar);
   
   const urlParams = new URLSearchParams(window.location.search);
-  const initialPage = urlParams.get("page") || "categories";
-
+  let initialPage = urlParams.get("page") || "categories";
+  
+  if (!isLoggedIn() && initialPage !== "login") {
+    initialPage = "login";
+  }
+  
   navigate(initialPage, false);
 }
 

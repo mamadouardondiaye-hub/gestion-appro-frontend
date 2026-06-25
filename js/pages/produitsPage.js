@@ -6,7 +6,14 @@ import { showToast } from "../components/toast.js";
 import { escapeHtml } from "../utils/html.js";
 import { validateForm } from "../utils/validators.js";
 import { getCategories } from "../services/categorieService.js";
-import { getProduits, createProduit, updateProduit, deleteProduit, uploadImageToCloudinary } from "../services/produitService.js";
+import { 
+  getProduits, 
+  createProduit, 
+  updateProduit, 
+  deleteProduit, 
+  uploadImageToCloudinary 
+} from "../services/produitService.js";
+import { getCurrentUser, isAdmin, isFournisseur } from "../services/userService.js";
 
 let currentView = "liste";
 
@@ -78,6 +85,16 @@ function handleFormErrors(modal, errors) {
 }
 
 function openProduitForm(produit = null, categories = []) {
+  // Vérification : Si on modifie un produit, vérifier les droits
+  if (produit) {
+    const user = getCurrentUser();
+    if (!isAdmin() && produit.fournisseurId !== user?.id) {
+      showToast("Vous ne pouvez pas modifier ce produit. Vous n'êtes pas le fournisseur.", "error");
+      return;
+    }
+  }
+
+  // Vérification : Il faut au moins une catégorie
   if (categories.length === 0) {
     showToast("Veuillez d'abord enregistrer au moins une catégorie.", "error");
     return;
@@ -95,10 +112,21 @@ function openProduitForm(produit = null, categories = []) {
       const categorieId = modal.querySelector("#produitCategorie").value;
       const imageFileInput = modal.querySelector("#produitImage");
 
+      // Règles de validation
       const rules = {
         libelle: { required: true, requiredMessage: "Le libellé est requis." },
-        prix: { required: true, isPositiveNumber: true, requiredMessage: "Le prix est requis.", numberMessage: "Prix valide requis." },
-        quantite: { required: true, isPositiveNumber: true, requiredMessage: "La quantité est requise.", numberMessage: "Quantité valide requise." },
+        prix: { 
+          required: true, 
+          isPositiveNumber: true, 
+          requiredMessage: "Le prix est requis.", 
+          numberMessage: "Prix valide requis." 
+        },
+        quantite: { 
+          required: true, 
+          isPositiveNumber: true, 
+          requiredMessage: "La quantité est requise.", 
+          numberMessage: "Quantité valide requise." 
+        },
         categorieId: { required: true, requiredMessage: "Sélectionnez une catégorie." }
       };
 
@@ -112,13 +140,21 @@ function openProduitForm(produit = null, categories = []) {
       try {
         let imageUrl = produit?.image || "";
 
+        // Upload de l'image si une nouvelle est sélectionnée
         if (imageFileInput.files && imageFileInput.files[0]) {
           showToast("Envoi de l'image vers Cloudinary...", "info");
           imageUrl = await uploadImageToCloudinary(imageFileInput.files[0]);
         }
 
-        const dataProduit = { libelle, prix, quantite, categorieId, image: imageUrl };
+        const dataProduit = { 
+          libelle, 
+          prix: Number(prix), 
+          quantite: Number(quantite), 
+          categorieId, 
+          image: imageUrl 
+        };
 
+        // Si c'est un nouveau produit, le fournisseurId sera ajouté automatiquement par le service
         if (produit) {
           await updateProduit(produit.id, dataProduit);
           showToast("Le produit a bien été mis à jour.");
@@ -136,6 +172,7 @@ function openProduitForm(produit = null, categories = []) {
     }
   });
 
+  // Aperçu instantané de l'image
   const inputImg = document.getElementById("produitImage");
   if (inputImg) {
     inputImg.addEventListener("change", (e) => {
@@ -186,12 +223,19 @@ function renderCardsView(produits, categoryMap) {
               </div>
 
               <div class="mt-5 flex gap-2 border-t border-slate-100 pt-4">
-                <button class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-extrabold text-slate-700 transition hover:bg-slate-50" data-edit="${escapeHtml(prod.id)}">
-                  <i class="fa-solid fa-pen"></i> Modifier
-                </button>
-                <button class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-rose-600 py-2.5 text-xs font-extrabold text-white transition hover:bg-rose-700" data-delete="${escapeHtml(prod.id)}">
-                  <i class="fa-solid fa-trash"></i> Supprimer
-                </button>
+                ${canModifyProduct(prod) ? `
+                  <button class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-extrabold text-slate-700 transition hover:bg-slate-50" data-edit="${escapeHtml(prod.id)}">
+                    <i class="fa-solid fa-pen"></i> Modifier
+                  </button>
+                ` : ''}
+                ${canDeleteProduct(prod) ? `
+                  <button class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-rose-600 py-2.5 text-xs font-extrabold text-white transition hover:bg-rose-700" data-delete="${escapeHtml(prod.id)}">
+                    <i class="fa-solid fa-trash"></i> Supprimer
+                  </button>
+                ` : ''}
+                ${!canModifyProduct(prod) && !canDeleteProduct(prod) ? `
+                  <span class="flex-1 text-center text-xs text-slate-400 py-2.5">Lecture seule</span>
+                ` : ''}
               </div>
             </div>
           </div>
@@ -199,6 +243,24 @@ function renderCardsView(produits, categoryMap) {
       }).join("")}
     </div>
   `;
+}
+
+// Fonctions de vérification des droits
+function canModifyProduct(produit) {
+  const user = getCurrentUser();
+  if (!user) return false;
+  if (isAdmin()) return true;
+  if (isFournisseur()) {
+    return produit.fournisseurId === user.id;
+  }
+  return false;
+}
+
+function canDeleteProduct(produit) {
+  const user = getCurrentUser();
+  if (!user) return false;
+  // Seul l'admin peut supprimer des produits
+  return isAdmin();
 }
 
 export async function renderProduitsPage() {
@@ -210,6 +272,9 @@ export async function renderProduitsPage() {
 
   const activeBtnClass = "bg-slate-950 text-white shadow-sm";
   const inactiveBtnClass = "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50";
+
+  const user = getCurrentUser();
+  const isUserAdmin = isAdmin();
 
   app.innerHTML = `
     <section>
@@ -226,6 +291,7 @@ export async function renderProduitsPage() {
         <div>
           <h2 class="text-xl font-black text-slate-950">Catalogue Articles</h2>
           <p class="text-sm text-slate-500">${produits.length} produit(s) enregistré(s).</p>
+          ${user ? `<p class="text-xs text-slate-400">Connecté en tant que : ${user.email} (${user.role === 'admin' ? '👑 Administrateur' : '🤝 Fournisseur'})</p>` : ''}
         </div>
         
         <div class="flex items-center gap-1 rounded-2xl bg-slate-200/60 p-1">
@@ -252,18 +318,37 @@ export async function renderProduitsPage() {
             { label: "Catégorie", render: (p) => escapeHtml(categoryMap.get(p.categorieId) || "Sans catégorie") },
             { label: "Prix", render: (p) => `${Number(p.prix).toFixed(2)} €` },
             { label: "Quantité", render: (p) => `<span class="font-bold ${Number(p.quantite) === 0 ? 'text-rose-600' : 'text-slate-800'}">${p.quantite}</span>` },
+            { 
+              label: "Fournisseur", 
+              render: (p) => {
+                // On pourrait récupérer le nom du fournisseur depuis la base
+                return p.fournisseurId ? `<span class="text-xs text-slate-500">ID: ${escapeHtml(p.fournisseurId)}</span>` : '-';
+              }
+            },
             {
               label: "Actions",
-              render: (p) => `
-                <div class="flex items-center gap-2">
-                  <button class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-600 transition hover:bg-slate-50" data-edit="${escapeHtml(p.id)}">
-                    <i class="fa-solid fa-pen"></i> Modifier
-                  </button>
-                  <button class="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3 py-2 text-xs font-extrabold text-white transition hover:bg-rose-700" data-delete="${escapeHtml(p.id)}">
-                    <i class="fa-solid fa-trash"></i> Supprimer
-                  </button>
-                </div>
-              `
+              render: (p) => {
+                const canModify = canModifyProduct(p);
+                const canDelete = canDeleteProduct(p);
+                
+                return `
+                  <div class="flex items-center gap-2">
+                    ${canModify ? `
+                      <button class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-600 transition hover:bg-slate-50" data-edit="${escapeHtml(p.id)}">
+                        <i class="fa-solid fa-pen"></i> Modifier
+                      </button>
+                    ` : ''}
+                    ${canDelete ? `
+                      <button class="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3 py-2 text-xs font-extrabold text-white transition hover:bg-rose-700" data-delete="${escapeHtml(p.id)}">
+                        <i class="fa-solid fa-trash"></i> Supprimer
+                      </button>
+                    ` : ''}
+                    ${!canModify && !canDelete ? `
+                      <span class="text-xs text-slate-400"> Lecture seule</span>
+                    ` : ''}
+                  </div>
+                `;
+              }
             }
           ],
           rows: produits,
@@ -274,28 +359,60 @@ export async function renderProduitsPage() {
   `;
 
   // Événements d'IHM
-  document.getElementById("viewListBtn").addEventListener("click", () => { currentView = "liste"; renderProduitsPage(); });
-  document.getElementById("viewCardsBtn").addEventListener("click", () => { currentView = "cartes"; renderProduitsPage(); });
-  document.getElementById("addProduitBtn").addEventListener("click", () => openProduitForm(null, categories));
+  document.getElementById("viewListBtn").addEventListener("click", () => { 
+    currentView = "liste"; 
+    renderProduitsPage(); 
+  });
+  
+  document.getElementById("viewCardsBtn").addEventListener("click", () => { 
+    currentView = "cartes"; 
+    renderProduitsPage(); 
+  });
+  
+  document.getElementById("addProduitBtn").addEventListener("click", () => {
+    // Vérifier si l'utilisateur peut créer un produit
+    if (!user) {
+      showToast("Vous devez être connecté pour créer un produit.", "error");
+      return;
+    }
+    openProduitForm(null, categories);
+  });
 
   document.querySelectorAll("[data-edit]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const prod = produits.find((x) => x.id === btn.dataset.edit);
-      if (prod) openProduitForm(prod, categories);
+      if (prod) {
+        // Vérifier les droits avant d'ouvrir le formulaire
+        if (!canModifyProduct(prod)) {
+          showToast("Vous n'avez pas le droit de modifier ce produit.", "error");
+          return;
+        }
+        openProduitForm(prod, categories);
+      }
     });
   });
 
   document.querySelectorAll("[data-delete]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const id = btn.dataset.delete;
+      const prod = produits.find((x) => x.id === id);
+      
+      if (!prod) return;
+      
+      // Vérifier les droits avant de supprimer
+      if (!canDeleteProduct(prod)) {
+        showToast("Seul un administrateur peut supprimer des produits.", "error");
+        return;
+      }
+      
       openConfirm({
         title: "Confirmer la suppression",
-        message: "Êtes-vous certain de vouloir retirer définitivement cet article de l'inventaire ?",
+        message: "Êtes-vous certain de vouloir retirer définitivement cet article de l'inventaire ? Cette action est irréversible.",
         confirmLabel: "Supprimer",
         onConfirm: async () => {
           try {
             await deleteProduit(id);
-            showToast("Produit supprimé.");
+            showToast("Produit supprimé avec succès.");
             await renderProduitsPage();
           } catch (err) {
             showToast(err.message, "error");

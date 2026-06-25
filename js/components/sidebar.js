@@ -1,11 +1,24 @@
 // js/components/sidebar.js
-const NAV_LINKS = [
-  { page: "categories", label: "Catégories", icon: "fa-tags" },
-  { page: "produits", label: "Produits", icon: "fa-box" },
-];
+import { getCurrentUser, logout, isAdmin, isFournisseur } from "../services/userService.js";
+import { navigate } from "../router.js";
+import { showToast } from "./toast.js";
 
 export function renderSidebar() {
-  const items = NAV_LINKS.map((link) => `
+  const user = getCurrentUser();
+  const userRole = user?.role || "guest";
+  
+  const allLinks = [
+    { page: "categories", label: "Catégories", icon: "fa-tags", roles: ["admin", "fournisseur"] },
+    { page: "produits", label: "Produits", icon: "fa-box", roles: ["admin", "fournisseur"] },
+    { page: "users", label: "Utilisateurs", icon: "fa-users", roles: ["admin"] },
+  ];
+  
+  // Filtrer selon le rôle
+  const visibleLinks = allLinks.filter(link => 
+    link.roles.includes(userRole)
+  );
+  
+  const items = visibleLinks.map((link) => `
     <button class="nav-link flex items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950" data-page="${link.page}">
       <i class="fa-solid ${link.icon} w-5 text-center"></i>
       <span>${link.label}</span>
@@ -21,12 +34,33 @@ export function renderSidebar() {
         </div>
         <div>
           <h1 class="text-lg font-extrabold tracking-tight text-slate-950">Gestion Appro</h1>
+          ${user ? `<p class="text-xs text-slate-500 truncate max-w-[150px]">${user.email}</p>` : ''}
+          ${user ? `<span class="text-xs font-bold ${user.role === 'admin' ? 'text-indigo-600' : 'text-amber-600'}">${user.role === 'admin' ? 'Admin' : 'Fournisseur'}</span>` : ''}
         </div>
       </div>
 
       <nav class="grid gap-2 px-4 pb-4" aria-label="Navigation principale">
         ${items}
+        
+        ${user ? `
+          <hr class="my-2 border-slate-200" />
+          <button id="logoutBtn" class="flex items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-semibold text-rose-600 transition hover:bg-rose-50">
+            <i class="fa-solid fa-right-from-bracket w-5 text-center"></i>
+            <span>Déconnexion</span>
+          </button>
+        ` : ''}
       </nav>
     </aside>
   `;
+}
+
+export function initSidebarEvents() {
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", () => {
+      logout();
+      showToast("Déconnecté avec succès.", "info");
+      navigate("login");
+    });
+  }
 }

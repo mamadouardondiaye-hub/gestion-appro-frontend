@@ -2,19 +2,35 @@
 import { showToast } from "./components/toast.js";
 import { renderCategoriesPage } from "./pages/categoriesPage.js";
 import { renderProduitsPage } from "./pages/produitsPage.js";
+import { renderLoginPage } from "./pages/loginPage.js";
+import { renderUsersPage } from "./pages/usersPage.js";
+import { isLoggedIn } from "./services/userService.js";
 
 const routes = {
+  login: renderLoginPage,
   categories: renderCategoriesPage,
   produits: renderProduitsPage,
+  users: renderUsersPage,
 };
 
 const titles = {
+  login: "Connexion",
   categories: "Catégories",
   produits: "Produits",
+  users: "Utilisateurs",
 };
 
 export async function navigate(page = "categories", addToHistory = true) {
   const app = document.getElementById("app");
+  
+  // Pages publiques (pas besoin d'être connecté)
+  const publicPages = ["login"];
+  const isPublic = publicPages.includes(page);
+  
+  // Si la page est protégée et l'utilisateur n'est pas connecté
+  if (!isPublic && !isLoggedIn()) {
+    page = "login";
+  }
   
   const targetPage = routes[page] ? page : "categories";
   const route = routes[targetPage];
@@ -24,7 +40,7 @@ export async function navigate(page = "categories", addToHistory = true) {
     window.history.pushState({ page: targetPage }, "", newUrl);
   }
 
-  // Gérer la classe active des liens de la sidebar
+  // Mise à jour de la sidebar
   document.querySelectorAll("[data-page]").forEach((button) => {
     const isActive = button.dataset.page === targetPage;
     button.classList.toggle("bg-slate-950", isActive);
@@ -41,7 +57,7 @@ export async function navigate(page = "categories", addToHistory = true) {
     navbarTitle.textContent = titles[targetPage] || titles.categories;
   }
 
-  // Loader global
+  // Loader
   app.innerHTML = `
     <div class="grid min-h-[50vh] place-items-center rounded-[2rem] border border-slate-200 bg-white p-10 text-center shadow-sm">
       <div>
