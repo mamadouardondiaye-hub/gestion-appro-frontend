@@ -7,13 +7,15 @@ export function renderSidebar() {
   const user = getCurrentUser();
   const userRole = user?.role || "guest";
   
-  // js/components/sidebar.js - Déjà fait dans votre code
-// Les fournisseurs ne voient pas le lien "Utilisateurs"
-const allLinks = [
-  { page: "categories", label: "Catégories", icon: "fa-tags", roles: ["admin", "fournisseur"] },
-  { page: "produits", label: "Produits", icon: "fa-box", roles: ["admin", "fournisseur"] },
-  { page: "users", label: "Utilisateurs", icon: "fa-users", roles: ["admin"] }, // ← Seul admin voit ça
-];
+  // 🔥 Définition des liens avec leur rôle requis
+  const allLinks = [
+    // Seul l'admin voit les catégories
+    { page: "categories", label: "Catégories", icon: "fa-tags", roles: ["admin"] },
+    // Tout le monde voit les produits
+    { page: "produits", label: "Produits", icon: "fa-box", roles: ["admin", "fournisseur"] },
+    // Seul l'admin voit les utilisateurs
+    { page: "users", label: "Utilisateurs", icon: "fa-users", roles: ["admin"] },
+  ];
   
   // Filtrer selon le rôle
   const visibleLinks = allLinks.filter(link => 
@@ -37,7 +39,7 @@ const allLinks = [
         <div>
           <h1 class="text-lg font-extrabold tracking-tight text-slate-950">Gestion Appro</h1>
           ${user ? `<p class="text-xs text-slate-500 truncate max-w-[150px]">${user.email}</p>` : ''}
-          ${user ? `<span class="text-xs font-bold ${user.role === 'admin' ? 'text-indigo-600' : 'text-amber-600'}">${user.role === 'admin' ? 'Admin' : 'Fournisseur'}</span>` : ''}
+          ${user ? `<span class="text-xs font-bold ${user.role === 'admin' ? 'text-indigo-600' : 'text-amber-600'}">${user.role === 'admin' ? 'Admin' : ' Fournisseur'}</span>` : ''}
         </div>
       </div>
 

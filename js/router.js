@@ -4,7 +4,7 @@ import { renderCategoriesPage } from "./pages/categoriesPage.js";
 import { renderProduitsPage } from "./pages/produitsPage.js";
 import { renderLoginPage } from "./pages/loginPage.js";
 import { renderUsersPage } from "./pages/usersPage.js";
-import { isLoggedIn } from "./services/userService.js";
+import { isLoggedIn, getCurrentUser } from "./services/userService.js";
 import { renderSidebar, initSidebarEvents } from "./components/sidebar.js";
 import { renderNavbar } from "./components/navbar.js";
 
@@ -52,31 +52,47 @@ function unmountLayout() {
 export async function navigate(page = "categories", addToHistory = true) {
   const app = document.getElementById("app");
 
+  // Pages publiques (pas besoin d'être connecté)
   const publicPages = ["login"];
   const isPublic = publicPages.includes(page);
 
+  // Si la page est protégée et l'utilisateur n'est pas connecté
   if (!isPublic && !isLoggedIn()) {
     page = "login";
   }
 
+  // 🔥 Vérifier les droits d'accès
+  // Les fournisseurs ne peuvent pas accéder aux catégories et aux utilisateurs
+  const user = getCurrentUser();
+  if (user && user.role === "fournisseur") {
+    if (page === "categories" || page === "users") {
+      showToast("Accès refusé. Vous n'avez pas les droits pour accéder à cette page.", "error");
+      page = "produits";
+    }
+  }
+
+  // Vérifier si la page existe, sinon rediriger vers categories
   const targetPage = routes[page] ? page : "categories";
   const route = routes[targetPage];
 
-  // Gérer l'affichage du layout
+  // Gérer l'affichage du layout (sidebar + navbar)
+  // La page de login n'a pas de layout
   if (targetPage === "login") {
     unmountLayout();
   } else {
+    // Si la sidebar n'existe pas encore, on monte le layout
     if (!document.getElementById("sidebar")) {
       mountLayout();
     }
   }
 
+  // Mettre à jour l'URL dans la barre d'adresse
   if (addToHistory) {
     const newUrl = `${window.location.pathname}?page=${targetPage}`;
     window.history.pushState({ page: targetPage }, "", newUrl);
   }
 
-  // Active state sidebar
+  // Mettre à jour l'état actif de la sidebar
   document.querySelectorAll("[data-page]").forEach((button) => {
     const isActive = button.dataset.page === targetPage;
     button.classList.toggle("bg-slate-950", isActive);
@@ -88,11 +104,13 @@ export async function navigate(page = "categories", addToHistory = true) {
     button.classList.toggle("hover:text-slate-950", !isActive);
   });
 
+  // Mettre à jour le titre dans la navbar
   const navbarTitle = document.getElementById("navbarTitle");
   if (navbarTitle) {
     navbarTitle.textContent = titles[targetPage] || titles.categories;
   }
 
+  // Afficher le loader pendant le chargement
   app.innerHTML = `
     <div class="grid min-h-[50vh] place-items-center rounded-[2rem] border border-slate-200 bg-white p-10 text-center shadow-sm">
       <div>
@@ -102,6 +120,7 @@ export async function navigate(page = "categories", addToHistory = true) {
     </div>
   `;
 
+  // Exécuter la fonction de la page
   try {
     await route();
   } catch (error) {
@@ -119,6 +138,7 @@ export async function navigate(page = "categories", addToHistory = true) {
   }
 }
 
+// Gestion des boutons "Précédent" / "Suivant" du navigateur
 window.addEventListener("popstate", (event) => {
   const page = event.state?.page || "categories";
   navigate(page, false);

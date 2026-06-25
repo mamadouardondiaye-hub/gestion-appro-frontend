@@ -11,6 +11,7 @@ import {
   getCategories,
   updateCategorie,
 } from "../services/categorieService.js";
+import { isAdmin, isFournisseur, getCurrentUser } from "../services/userService.js";
 
 function categorieFormBody(categorie) {
   return `
@@ -67,6 +68,41 @@ function openCategorieForm(categorie = null) {
 export async function renderCategoriesPage() {
   const app = document.getElementById("app");
   const categories = await getCategories();
+  
+  // Vérifier si l'utilisateur est admin
+  const user = getCurrentUser();
+  const isAdminUser = isAdmin();
+  const isFournisseurUser = isFournisseur();
+  
+  // Si l'utilisateur est fournisseur, rediriger vers produits
+  if (isFournisseurUser) {
+    showToast("Accès refusé. Les fournisseurs ne peuvent pas accéder aux catégories.", "error");
+    navigate("produits");
+    return;
+  }
+
+  // Définir les colonnes
+  const columns = [
+    { label: "Identifiant", key: "id" },
+    { label: "Désignation / Libellé", render: (cat) => escapeHtml(cat.libelle) },
+  ];
+
+  // 🔥 Ajouter la colonne Actions uniquement pour l'admin
+  if (isAdminUser) {
+    columns.push({
+      label: "Actions",
+      render: (cat) => `
+        <div class="flex items-center gap-2">
+          <button class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-600 transition hover:bg-slate-50" data-edit="${escapeHtml(cat.id)}">
+            <i class="fa-solid fa-pen"></i> Modifier
+          </button>
+          <button class="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3 py-2 text-xs font-extrabold text-white transition hover:bg-rose-700" data-delete="${escapeHtml(cat.id)}">
+            <i class="fa-solid fa-trash"></i> Supprimer
+          </button>
+        </div>
+      `,
+    });
+  }
 
   app.innerHTML = `
     <section>
@@ -74,7 +110,7 @@ export async function renderCategoriesPage() {
         kicker: "Structure",
         title: "Catégories",
         subtitle: "Organiser et classifier vos produits pour affiner vos approvisionnements.",
-        actionLabel: "Nouvelle catégorie",
+        actionLabel: isAdminUser ? "Nouvelle catégorie" : null,
         actionId: "addCategorieBtn",
         actionIcon: "fa-tag",
       })}
@@ -83,29 +119,15 @@ export async function renderCategoriesPage() {
         ${renderTable({
           rows: categories,
           emptyMessage: "Aucune catégorie enregistrée pour le moment.",
-          columns: [
-            { label: "Identifiant", key: "id" },
-            { label: "Désignation / Libellé", render: (cat) => escapeHtml(cat.libelle) },
-            {
-              label: "Actions",
-              render: (cat) => `
-                <div class="flex items-center gap-2">
-                  <button class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-600 transition hover:bg-slate-50" data-edit="${escapeHtml(cat.id)}">
-                    <i class="fa-solid fa-pen"></i> Modifier
-                  </button>
-                  <button class="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3 py-2 text-xs font-extrabold text-white transition hover:bg-rose-700" data-delete="${escapeHtml(cat.id)}">
-                    <i class="fa-solid fa-trash"></i> Supprimer
-                  </button>
-                </div>
-              `,
-            },
-          ],
+          columns: columns,
         })}
       </article>
     </section>
   `;
 
-  bindCategorieEvents(categories);
+  if (isAdminUser) {
+    bindCategorieEvents(categories);
+  }
 }
 
 function bindCategorieEvents(categories) {
